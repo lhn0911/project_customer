@@ -7,19 +7,22 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
-import ra.edu.project_customer.dto.request.OtpVerifyDTO;
-import ra.edu.project_customer.dto.request.UserLogin;
-import ra.edu.project_customer.dto.request.UserRegister;
+import ra.edu.project_customer.dto.request.*;
 import ra.edu.project_customer.dto.response.APIResponse;
 import ra.edu.project_customer.dto.response.JWTResponse;
 import ra.edu.project_customer.entity.RefreshToken;
 import ra.edu.project_customer.entity.User;
 import ra.edu.project_customer.repository.UserRepository;
 import ra.edu.project_customer.security.jwt.JWTProvider;
+import ra.edu.project_customer.security.pricipal.CustomUserDetails;
 import ra.edu.project_customer.service.OtpService;
 import ra.edu.project_customer.service.RefreshTokenService;
 import ra.edu.project_customer.service.UserService;
+
+import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -42,7 +45,8 @@ public class AuthController {
 
     @Autowired
     private RefreshTokenService refreshTokenService;
-
+    @Autowired
+    private PasswordEncoder passwordEncoder;
     // ===== 1. ĐĂNG KÝ =====
     @PostMapping("/register")
     public ResponseEntity<APIResponse<User>> registerUser(@RequestBody UserRegister userRegister) {
@@ -94,4 +98,53 @@ public class AuthController {
         JWTResponse jwtResponse = userService.login(userLogin);
         return ResponseEntity.ok(APIResponse.success(jwtResponse, "Đăng nhập thành công"));
     }
+
+    @GetMapping("/profile")
+    public ResponseEntity<?> getCurrentUserProfile(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        User user = userRepository.findByUsername(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+
+        return ResponseEntity.ok(new UserProfileDTO(
+                user.getUsername(),
+                user.getFullName(),
+                user.getEmail(),
+                user.getPhoneNumber(),
+                user.getEmailVerified()
+        ));
+
+    }
+    @PutMapping("/profile")
+    public ResponseEntity<?> updateProfile(Authentication authentication, @RequestBody UpdateProfileRequest dto) {
+        String username = authentication.getName();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User không tồn tại"));
+
+        user.setFullName(dto.getFullName());
+        user.setPhoneNumber(dto.getPhoneNumber());
+        user.setUpdatedAt(LocalDateTime.now());
+
+        userRepository.save(user);
+        return ResponseEntity.ok("Cập nhật thông tin thành công");
+    }
+    @PutMapping("/profile/change-password")
+    public ResponseEntity<?> changePassword(
+            Authentication authentication,
+            @RequestBody ChangePasswordRequest dto
+    ) {
+        String username = authentication.getName();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User không tồn tại"));
+
+        if (!passwordEncoder.matches(dto.getOldPassword(), user.getPasswordHash())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Mật khẩu cũ không đúng");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(dto.getNewPassword()));
+        user.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(user);
+
+        return ResponseEntity.ok("Đổi mật khẩu thành công");
+    }
+
+
 }
