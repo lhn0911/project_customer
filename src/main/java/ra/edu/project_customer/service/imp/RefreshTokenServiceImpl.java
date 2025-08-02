@@ -22,13 +22,25 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     private JWTProvider jwtProvider;
 
     public RefreshToken createRefreshToken(User user, String ip) {
-        RefreshToken token = new RefreshToken();
-        token.setUser(user);
-        token.setToken(UUID.randomUUID().toString());
-        token.setAddressIp(ip);
-        token.setExpiryDate(LocalDateTime.now().plusDays(7));
+        Optional<RefreshToken> existingTokenOpt = refreshTokenRepository.findByUser(user);
+        RefreshToken token;
+
+        if (existingTokenOpt.isPresent()) {
+            token = existingTokenOpt.get();
+            token.setToken(UUID.randomUUID().toString());
+            token.setAddressIp(ip);
+            token.setExpiryDate(LocalDateTime.now().plusDays(7));
+        } else {
+            token = new RefreshToken();
+            token.setUser(user);
+            token.setToken(UUID.randomUUID().toString());
+            token.setAddressIp(ip);
+            token.setExpiryDate(LocalDateTime.now().plusDays(7));
+        }
+
         return refreshTokenRepository.save(token);
     }
+
 
     public boolean isValid(RefreshToken token, String ip) {
         return token.getExpiryDate().isAfter(LocalDateTime.now()) && token.getAddressIp().equals(ip);
@@ -41,6 +53,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     public Optional<RefreshToken> findByToken(String token) {
         return refreshTokenRepository.findByToken(token);
     }
+
 
     public void manageRefreshTokenLimit(User user, String ip) {
         List<RefreshToken> tokens = refreshTokenRepository.findAllByUserOrderByExpiryDateAsc(user);

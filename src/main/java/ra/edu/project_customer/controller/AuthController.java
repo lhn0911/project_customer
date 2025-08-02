@@ -1,7 +1,9 @@
 package ra.edu.project_customer.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -13,8 +15,10 @@ import org.springframework.web.bind.annotation.*;
 import ra.edu.project_customer.dto.request.*;
 import ra.edu.project_customer.dto.response.APIResponse;
 import ra.edu.project_customer.dto.response.JWTResponse;
+import ra.edu.project_customer.dto.response.UserResponseDTO;
 import ra.edu.project_customer.entity.RefreshToken;
 import ra.edu.project_customer.entity.User;
+import ra.edu.project_customer.mapper.UserMapper;
 import ra.edu.project_customer.repository.UserRepository;
 import ra.edu.project_customer.security.jwt.JWTProvider;
 import ra.edu.project_customer.security.pricipal.CustomUserDetails;
@@ -23,80 +27,95 @@ import ra.edu.project_customer.service.RefreshTokenService;
 import ra.edu.project_customer.service.UserService;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/auth")
+@RequiredArgsConstructor
+@Slf4j
 public class AuthController {
+    private final UserService userService;
+    private final OtpService otpService;
+    private final AuthenticationManager authManager;
+    private final UserRepository userRepository;
+    private final JWTProvider jwtProvider;
+    private final RefreshTokenService refreshTokenService;
+    private final PasswordEncoder passwordEncoder;
 
-    @Autowired
-    private UserService userService;
-
-    @Autowired
-    private OtpService otpService;
-
-    @Autowired
-    private AuthenticationManager authManager;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private JWTProvider jwtProvider;
-
-    @Autowired
-    private RefreshTokenService refreshTokenService;
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-    // ===== 1. ĐĂNG KÝ =====
     @PostMapping("/register")
-    public ResponseEntity<APIResponse<User>> registerUser(@RequestBody UserRegister userRegister) {
-        User createdUser = userService.registerUser(userRegister); // Xử lý gửi OTP ở đây
-        return ResponseEntity.ok(APIResponse.success(createdUser, "Đăng ký thành công. Vui lòng kiểm tra email để xác thực."));
+    public ResponseEntity<APIResponse<UserResponseDTO>> registerUser(@Valid @RequestBody UserRegister userRegister) {
+        User savedUser = userService.registerUser(userRegister);
+
+        otpService.generateAndSendOtp(savedUser);
+
+        UserResponseDTO dto = UserMapper.toDTO(savedUser);
+
+        return ResponseEntity.ok(APIResponse.success(dto, "Đăng ký thành công. Vui lòng kiểm tra email để nhận mã OTP."));
     }
 
-    // ===== 2. XÁC MINH OTP =====
-    @PostMapping("/verify-otp")
-    public ResponseEntity<?> verifyOtp(@RequestBody OtpVerifyDTO dto, HttpServletRequest request) {
-        // Xác thực tài khoản + mật khẩu
-        Authentication auth = authManager.authenticate(
-                new UsernamePasswordAuthenticationToken(dto.getUsername(), dto.getPassword())
-        );
 
-        User user = userRepository.findByUsername(dto.getUsername()).orElseThrow();
+    @PostMapping("/otp")
+    public ResponseEntity<?> verifyOtp(@Valid @RequestBody OtpVerify dto) {
+        User user = userRepository.findByUsername(dto.getUsername())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản"));
 
-        // Kiểm tra OTP
         if (!otpService.verifyOtp(user, dto.getOtp())) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Mã OTP không đúng");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Mã OTP không đúng hoặc đã hết hạn");
         }
 
-        // Đánh dấu tài khoản đã xác minh
-        user.setVerified(true);
+        user.setEmailVerified(true);
+        log.info("✅ Xác minh OTP thành công cho user: {}", user.getUsername());
+        log.info("Trạng thái emailVerified: {}", user.getEmailVerified());
         userRepository.save(user);
 
-        // Tạo access token & refresh token
+        return ResponseEntity.ok("Xác minh OTP thành công. Bạn có thể đăng nhập.");
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@Valid @RequestBody UserLogin userLogin, HttpServletRequest request) {
+        log.info("🔐 Đăng nhập với username: {}", userLogin.getUsername());
+        Authentication auth = authManager.authenticate(
+                new UsernamePasswordAuthenticationToken(userLogin.getUsername(), userLogin.getPassword())
+        );
+
+        User user = userRepository.findByUsername(userLogin.getUsername())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản"));
+
+        if (!user.getEmailVerified()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Tài khoản chưa được xác minh email.");
+        }
+
         String accessToken = jwtProvider.generateToken(user.getUsername());
         String ip = request.getRemoteAddr();
         refreshTokenService.manageRefreshTokenLimit(user, ip);
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user, ip);
 
-        return ResponseEntity.ok(new JWTResponse(accessToken, refreshToken.getToken()));
+        return ResponseEntity.ok(JWTResponse.builder()
+                .username(user.getUsername())
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .phone(user.getPhoneNumber())
+                .authorities(auth.getAuthorities())
+                .token(accessToken)
+                .refreshToken(refreshToken.getToken())
+                .build());
+
     }
 
-    // ===== 3. ĐĂNG NHẬP =====
-    @PostMapping("/login")
-    public ResponseEntity<APIResponse<JWTResponse>> loginUser(@RequestBody UserLogin userLogin) {
-        // Lấy user
-        User user = userRepository.findByUsername(userLogin.getUsername())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản"));
+    @PostMapping("/refresh-token")
+    public ResponseEntity<?> refreshToken(@RequestBody Map<String, String> body, HttpServletRequest request) {
+        String refreshTokenStr = body.get("refreshToken");
+        String ip = request.getRemoteAddr();
 
-        // Kiểm tra đã xác minh OTP chưa
-        if (!user.isVerified()) {
-            throw new RuntimeException("Tài khoản chưa xác minh OTP. Vui lòng kiểm tra email.");
+        RefreshToken refreshToken = refreshTokenService.findByToken(refreshTokenStr)
+                .orElseThrow(() -> new RuntimeException("Refresh token không hợp lệ"));
+
+        if (!refreshTokenService.isValid(refreshToken, ip)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Token không hợp lệ hoặc IP không khớp");
         }
 
-        // Gọi service xử lý đăng nhập và sinh token
-        JWTResponse jwtResponse = userService.login(userLogin);
-        return ResponseEntity.ok(APIResponse.success(jwtResponse, "Đăng nhập thành công"));
+        String accessToken = jwtProvider.generateToken(refreshToken.getUser().getUsername());
+        return ResponseEntity.ok(Map.of("accessToken", accessToken));
     }
 
     @GetMapping("/profile")
@@ -109,27 +128,45 @@ public class AuthController {
                 user.getFullName(),
                 user.getEmail(),
                 user.getPhoneNumber(),
-                user.getEmailVerified()
+                user.getEmailVerified(),
+                user.getUserRoles().stream()
+                        .map(userRole -> userRole.getRole().getRoleName().name())
+                        .toList()
+
         ));
 
     }
-    @PutMapping("/profile")
-    public ResponseEntity<?> updateProfile(Authentication authentication, @RequestBody UpdateProfileRequest dto) {
-        String username = authentication.getName();
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User không tồn tại"));
 
-        user.setFullName(dto.getFullName());
-        user.setPhoneNumber(dto.getPhoneNumber());
-        user.setUpdatedAt(LocalDateTime.now());
+    @PutMapping("/profile")
+    public ResponseEntity<?> updateProfile(@Valid @RequestBody UpdateProfileRequest request) {
+        User user = userService.getCurrentUser(); // Đã khai báo ở đây
+
+        boolean emailChanged = request.getNewEmail() != null &&
+                !request.getNewEmail().equals(user.getEmail()); // Sửa 'currentUser' thành 'user'
+
+        user.setFullName(request.getFullName());
+        user.setPhoneNumber(request.getPhoneNumber());
+
+        if (emailChanged) {
+            user.setEmail(request.getNewEmail());
+            user.setEmailVerified(false);
+            otpService.generateAndSendOtp(user);
+            userRepository.save(user);
+
+            return ResponseEntity.ok("Thông tin cập nhật. Vui lòng xác minh email mới.");
+        }
 
         userRepository.save(user);
-        return ResponseEntity.ok("Cập nhật thông tin thành công");
+        return ResponseEntity.ok("Thông tin cá nhân đã được cập nhật.");
     }
+
+
+
+    // ===== 7. ĐỔI MẬT KHẨU =====
     @PutMapping("/profile/change-password")
     public ResponseEntity<?> changePassword(
             Authentication authentication,
-            @RequestBody ChangePasswordRequest dto
+            @Valid @RequestBody ChangePasswordRequest dto
     ) {
         String username = authentication.getName();
         User user = userRepository.findByUsername(username)
@@ -145,6 +182,4 @@ public class AuthController {
 
         return ResponseEntity.ok("Đổi mật khẩu thành công");
     }
-
-
 }

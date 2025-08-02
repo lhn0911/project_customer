@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
+import ra.edu.project_customer.entity.User;
 
 import java.util.Collection;
 
@@ -23,8 +24,14 @@ public class JWTResponse {
     private String refreshToken;
 
 
-    public JWTResponse(String accessToken, String token){
+    public JWTResponse(User user, String accessToken, String refreshToken, Collection<? extends GrantedAuthority> authorities) {
+        this.username = user.getUsername();
+        this.fullName = user.getFullName();
+        this.email = user.getEmail();
+        this.phone = user.getPhoneNumber();
         this.token = accessToken;
-        this.refreshToken = token;
+        this.refreshToken = refreshToken;
+        this.authorities = authorities;
     }
+
 }

@@ -8,7 +8,6 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
-import java.util.List;
 
 @Data
 @AllArgsConstructor
@@ -53,4 +52,8 @@ public class CustomUserDetails implements UserDetails {
         return true;
     }
 
+    @Override
+    public boolean isEnabled() {
+        return true;
+    }
 }

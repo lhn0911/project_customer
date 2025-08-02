@@ -1,31 +1,40 @@
 package ra.edu.project_customer.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
 
+import lombok.Data;
 import java.time.LocalDateTime;
 
+
 @Entity
+@Table(name = "UserRoles", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"user_id", "role_id"})
+})
 @Data
-@Table(name = "user_roles", uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "role_id"}))
 public class UserRole {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "user_role_id")
     private Integer userRoleId;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
 
-    @Column(nullable = false)
+    @Column(name = "assigned_at", nullable = false, columnDefinition = "DATETIME DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime assignedAt = LocalDateTime.now();
 
     public UserRole(User user, Role role) {
         this.user = user;
         this.role = role;
+    }
+
+    public UserRole() {
+
     }
 }

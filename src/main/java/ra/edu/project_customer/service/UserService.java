@@ -8,9 +8,8 @@ import ra.edu.project_customer.entity.User;
 
 public interface UserService {
     User registerUser(UserRegister userRegister);
-
     JWTResponse login(UserLogin userLogin);
-
     boolean isUsernameTaken(String username);
     boolean isEmailTaken(String email);
+    public User getCurrentUser();
 }
