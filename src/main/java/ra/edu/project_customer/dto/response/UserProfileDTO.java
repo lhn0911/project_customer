@@ -1,4 +1,4 @@
-package ra.edu.project_customer.dto.request;
+package ra.edu.project_customer.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

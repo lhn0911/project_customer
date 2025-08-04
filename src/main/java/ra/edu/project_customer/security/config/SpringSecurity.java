@@ -50,12 +50,9 @@ public class SpringSecurity {
         http.csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                "/api/v1/auth/**",
-                                "/v3/api-docs/**",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html"
+                                "/api/v1/auth/**"
                         ).permitAll()
-                        .requestMatchers("/api/v1/admin/**","/api/v1/users/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/admin/**","/api/v1/users/**","/api/v1/user-roles","/api/v1/customer-groups").hasRole("ADMIN")
                         .requestMatchers("/api/v1/staff/**").hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers("/api/v1/customer/**").hasAnyRole("ADMIN", "STAFF", "CUSTOMER")
                         .anyRequest().authenticated()

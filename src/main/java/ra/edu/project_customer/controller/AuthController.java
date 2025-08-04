@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import ra.edu.project_customer.dto.request.*;
 import ra.edu.project_customer.dto.response.APIResponse;
 import ra.edu.project_customer.dto.response.JWTResponse;
+import ra.edu.project_customer.dto.response.UserProfileDTO;
 import ra.edu.project_customer.dto.response.UserResponseDTO;
 import ra.edu.project_customer.entity.RefreshToken;
 import ra.edu.project_customer.entity.User;
