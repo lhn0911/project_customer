@@ -17,15 +17,16 @@ import ra.edu.project_customer.dto.response.APIResponse;
 import ra.edu.project_customer.dto.response.JWTResponse;
 import ra.edu.project_customer.dto.response.UserProfileDTO;
 import ra.edu.project_customer.dto.response.UserResponseDTO;
-import ra.edu.project_customer.entity.RefreshToken;
-import ra.edu.project_customer.entity.User;
+import ra.edu.project_customer.entity.*;
 import ra.edu.project_customer.mapper.UserMapper;
+import ra.edu.project_customer.repository.CustomerRepository;
 import ra.edu.project_customer.repository.UserRepository;
 import ra.edu.project_customer.security.jwt.JWTProvider;
 import ra.edu.project_customer.security.pricipal.CustomUserDetails;
 import ra.edu.project_customer.service.OtpService;
 import ra.edu.project_customer.service.RefreshTokenService;
 import ra.edu.project_customer.service.UserService;
+import ra.edu.project_customer.temp.TemporaryUserStorage;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -42,35 +43,54 @@ public class AuthController {
     private final JWTProvider jwtProvider;
     private final RefreshTokenService refreshTokenService;
     private final PasswordEncoder passwordEncoder;
+    private final TemporaryUserStorage temporaryUserStorage;
+    private final CustomerRepository customerRepository;
 
     @PostMapping("/register")
     public ResponseEntity<APIResponse<UserResponseDTO>> registerUser(@Valid @RequestBody UserRegister userRegister) {
-        User savedUser = userService.registerUser(userRegister);
+        User tempUser = userService.registerUser(userRegister);
 
-        otpService.generateAndSendOtp(savedUser);
+        otpService.generateAndSendOtp(tempUser);
 
-        UserResponseDTO dto = UserMapper.toDTO(savedUser);
+        UserResponseDTO dto = UserMapper.toDTO(tempUser);
 
         return ResponseEntity.ok(APIResponse.success(dto, "Đăng ký thành công. Vui lòng kiểm tra email để nhận mã OTP."));
     }
 
 
+
     @PostMapping("/otp")
     public ResponseEntity<?> verifyOtp(@Valid @RequestBody OtpVerify dto) {
-        User user = userRepository.findByUsername(dto.getUsername())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản"));
+        User tempUser = temporaryUserStorage.getTempUser(dto.getUsername());
+        if (tempUser == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Không tìm thấy tài khoản chờ xác minh");
+        }
 
-        if (!otpService.verifyOtp(user, dto.getOtp())) {
+        if (!otpService.verifyOtp(tempUser, dto.getOtp())) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Mã OTP không đúng hoặc đã hết hạn");
         }
 
-        user.setEmailVerified(true);
-        log.info("✅ Xác minh OTP thành công cho user: {}", user.getUsername());
-        log.info("Trạng thái emailVerified: {}", user.getEmailVerified());
-        userRepository.save(user);
+        tempUser.setEmailVerified(true);
+        User savedUser = userRepository.save(tempUser);
+
+        boolean hasCustomerRole = savedUser.getUserRoles().stream()
+                .anyMatch(ur -> ur.getRole().getRoleName().equals(RoleEnum.CUSTOMER));
+        if (hasCustomerRole) {
+            Customer customer = Customer.builder()
+                    .user(savedUser)
+                    .status(CustomerStatus.ACTIVE)
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+
+            customerRepository.save(customer);
+        }
+
+        temporaryUserStorage.removeTempUser(dto.getUsername());
 
         return ResponseEntity.ok("Xác minh OTP thành công. Bạn có thể đăng nhập.");
     }
+
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody UserLogin userLogin, HttpServletRequest request) {

@@ -13,16 +13,15 @@
     import ra.edu.project_customer.dto.request.UserLogin;
     import ra.edu.project_customer.dto.request.UserRegister;
     import ra.edu.project_customer.dto.response.JWTResponse;
-    import ra.edu.project_customer.entity.Role;
-    import ra.edu.project_customer.entity.RoleEnum;
-    import ra.edu.project_customer.entity.User;
-    import ra.edu.project_customer.entity.UserRole;
+    import ra.edu.project_customer.entity.*;
+    import ra.edu.project_customer.repository.CustomerRepository;
     import ra.edu.project_customer.repository.RoleRepository;
     import ra.edu.project_customer.repository.UserRepository;
     import ra.edu.project_customer.security.jwt.JWTProvider;
     import ra.edu.project_customer.security.pricipal.CustomUserDetails;
     import ra.edu.project_customer.service.OtpService;
     import ra.edu.project_customer.service.UserService;
+    import ra.edu.project_customer.temp.TemporaryUserStorage;
 
     import java.time.LocalDateTime;
     import java.util.ArrayList;
@@ -45,6 +44,10 @@
         private AuthenticationManager authenticationManager;
         @Autowired
         private OtpService otpService;
+        @Autowired
+        private CustomerRepository customerRepository;
+        @Autowired
+        private TemporaryUserStorage temporaryUserStorage;
 
         @Override
         public User registerUser(UserRegister userRegister) {
@@ -54,6 +57,10 @@
 
             if (userRepository.existsByEmail(userRegister.getEmail())) {
                 throw new RuntimeException("Email đã tồn tại");
+            }
+
+            if (temporaryUserStorage.contains(userRegister.getUsername())) {
+                throw new RuntimeException("Tài khoản đang chờ xác minh OTP");
             }
 
             User user = User.builder()
@@ -74,8 +81,13 @@
                     .collect(Collectors.toList());
 
             user.setUserRoles(userRoles);
-            return userRepository.save(user);
+
+            temporaryUserStorage.saveTempUser(user);
+
+            return user;
         }
+
+
 
         @Override
         public JWTResponse login(UserLogin userLogin) {
@@ -99,15 +111,6 @@
                     .token(token)
                     .build();
         }
-        @Override
-        public boolean isUsernameTaken(String username) {
-            return userRepository.existsByUsername(username);
-        }
-
-        @Override
-        public boolean isEmailTaken(String email) {
-            return userRepository.existsByEmail(email);
-        }
 
         public User getCurrentUser() {
             Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -121,6 +124,18 @@
 
             return userRepository.findByUsername(username)
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy user"));
+        }
+
+        @Override
+        public User findById(Integer userId) {
+            return userRepository.findById(userId)
+                    .orElseThrow(() -> new NoSuchElementException("Không tìm thấy user với id: " + userId));
+        }
+
+        @Override
+        public User findByUsername(String username) {
+            return userRepository.findByUsername(username)
+                    .orElseThrow(() -> new NoSuchElementException("Không tìm thấy user với username: " + username));
         }
 
 

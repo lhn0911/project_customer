@@ -53,7 +53,7 @@ public class SpringSecurity {
                                 "/api/v1/auth/**"
                         ).permitAll()
                         .requestMatchers("/api/v1/admin/**","/api/v1/users/**","/api/v1/user-roles","/api/v1/customer-groups").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/staff/**").hasAnyRole("ADMIN", "STAFF")
+                        .requestMatchers("/api/v1/staff/**","/api/customers/*/purchases").hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers("/api/v1/customer/**").hasAnyRole("ADMIN", "STAFF", "CUSTOMER")
                         .anyRequest().authenticated()
                 )

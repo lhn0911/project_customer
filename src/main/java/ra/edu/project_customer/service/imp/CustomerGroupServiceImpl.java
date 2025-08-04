@@ -7,6 +7,7 @@ import ra.edu.project_customer.exception.ResourceNotFoundException;
 import ra.edu.project_customer.repository.CustomerGroupRepository;
 import ra.edu.project_customer.service.CustomerGroupService;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -17,8 +18,9 @@ public class CustomerGroupServiceImpl implements CustomerGroupService {
 
     @Override
     public List<CustomerGroup> getAllGroups() {
-        return groupRepository.findAll();
+        return groupRepository.findByStatusTrue();
     }
+
 
     @Override
     public CustomerGroup createGroup(CustomerGroup group) {
@@ -37,10 +39,20 @@ public class CustomerGroupServiceImpl implements CustomerGroupService {
     }
 
     @Override
-    public void deleteGroup(Integer id) {
-        if (!groupRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Customer group not found with id: " + id);
-        }
-        groupRepository.deleteById(id);
+    public CustomerGroup findById(Integer groupId) {
+        return groupRepository.findById(groupId)
+                .orElseThrow(() -> new ResourceNotFoundException("Customer group not found with id: " + groupId));
     }
+
+    @Override
+    public void deleteGroup(Integer id) {
+        CustomerGroup group = groupRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Customer group not found with id: " + id));
+
+        group.setStatus(false);
+        group.setUpdatedAt(LocalDateTime.now());
+
+        groupRepository.save(group);
+    }
+
 }

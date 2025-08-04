@@ -1,11 +1,16 @@
 package ra.edu.project_customer.entity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.List;
-
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Entity
 @Data
 @Table(name = "customers")
@@ -38,4 +43,7 @@ public class Customer {
 
     @OneToMany(mappedBy = "customer")
     private List<Purchase> purchases;
+
+    @Column(nullable = false)
+    private Boolean isDelete = false;
 }

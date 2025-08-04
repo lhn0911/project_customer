@@ -1,32 +1,48 @@
 package ra.edu.project_customer.mapper;
 
+import jakarta.validation.Valid;
 import ra.edu.project_customer.dto.request.CustomerRQ;
+import ra.edu.project_customer.dto.response.CustomerResponse;
 import ra.edu.project_customer.entity.Customer;
 import ra.edu.project_customer.entity.CustomerGroup;
 import ra.edu.project_customer.entity.User;
 
+import java.time.LocalDateTime;
+
 public class CustomerMapper {
-    public static CustomerRQ toDTO(Customer entity) {
-        CustomerRQ dto = new CustomerRQ();
-        dto.setCustomerId(entity.getCustomerId());
-        dto.setUserId(entity.getUser().getUserId());
-        dto.setGroupId(entity.getGroup() != null ? entity.getGroup().getGroupId() : null);
-        dto.setAddress(entity.getAddress());
-        dto.setCity(entity.getCity());
-        dto.setCountry(entity.getCountry());
-        dto.setStatus(entity.getStatus());
-        return dto;
+    public static Customer toEntity(CustomerRQ dto, User user, CustomerGroup group) {
+        return Customer.builder()
+                .customerId(dto.getCustomerId())
+                .user(user)
+                .group(group)
+                .address(dto.getAddress())
+                .city(dto.getCity())
+                .country(dto.getCountry())
+                .status(dto.getStatus())
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
     }
 
-    public static Customer toEntity(Customer dto, User user, CustomerGroup group) {
-        Customer entity = new Customer();
-        entity.setCustomerId(dto.getCustomerId());
-        entity.setUser(user);
-        entity.setGroup(group);
-        entity.setAddress(dto.getAddress());
-        entity.setCity(dto.getCity());
-        entity.setCountry(dto.getCountry());
-        entity.setStatus(dto.getStatus() != null ? dto.getStatus() : entity.getStatus());
-        return entity;
+
+    public static CustomerResponse toResponse(Customer customer) {
+        return CustomerResponse.builder()
+                .customerId(customer.getCustomerId())
+                .userId(customer.getUser() != null ? customer.getUser().getUserId() : null)
+                .fullName(customer.getUser() != null ? customer.getUser().getFullName() : null)
+                .groupId(customer.getGroup() != null ? customer.getGroup().getGroupId() : null)
+                .groupName(customer.getGroup() != null ? customer.getGroup().getGroupName() : null)
+                .address(customer.getAddress())
+                .city(customer.getCity())
+                .country(customer.getCountry())
+                .status(customer.getStatus() != null ? customer.getStatus().name() : null)
+                .isDelete(customer.getIsDelete() ? "Đã xóa" : "Chưa xóa")
+                .createdAt(customer.getCreatedAt())
+                .updatedAt(customer.getUpdatedAt())
+                .build();
     }
+
+
+
+
 }

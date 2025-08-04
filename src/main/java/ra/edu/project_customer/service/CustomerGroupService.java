@@ -12,5 +12,7 @@ public interface CustomerGroupService {
 
     CustomerGroup updateGroup(Integer id, CustomerGroup cus);
 
+    CustomerGroup findById(Integer groupId);
+
     void deleteGroup(Integer id);
 }

@@ -43,7 +43,7 @@ public class User {
     private Boolean emailVerified = false;
 
     @Column(name = "created_at", nullable = false, columnDefinition = "DATETIME DEFAULT CURRENT_TIMESTAMP")
-    private LocalDateTime createdAt;
+    private LocalDateTime createdAt = LocalDateTime.now();
 
     @Column(name = "updated_at", nullable = false, columnDefinition = "DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP")
     private LocalDateTime updatedAt;
@@ -65,5 +65,9 @@ public class User {
     @JsonIgnore
     private List<Notification> notifications;
     private String otp;
+    public boolean hasRole(RoleEnum roleEnum) {
+        return userRoles.stream()
+                .anyMatch(ur -> ur.getRole().getRoleName() == roleEnum);
+    }
 
 }

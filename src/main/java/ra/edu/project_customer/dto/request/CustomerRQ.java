@@ -2,14 +2,17 @@ package ra.edu.project_customer.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.Data;
+import lombok.*;
 import ra.edu.project_customer.entity.CustomerStatus;
 
-@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Getter
+@Setter
 public class CustomerRQ {
     private Integer customerId;
 
-    @NotNull(message = "userId không được null")
     private Integer userId;
 
     private Integer groupId;

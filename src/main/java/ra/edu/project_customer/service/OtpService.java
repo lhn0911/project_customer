@@ -19,14 +19,13 @@ public class OtpService {
     public void generateAndSendOtp(User user) {
         String otp = String.format("%06d", new Random().nextInt(1000000));
         user.setOtp(otp);
-        userRepo.save(user);
-
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(user.getEmail());
         message.setSubject("Your OTP Code");
         message.setText("Your OTP is: " + otp);
         mailSender.send(message);
     }
+
     public void sendOtp(String to, String otp) {
         SimpleMailMessage msg = new SimpleMailMessage();
         msg.setTo(to);

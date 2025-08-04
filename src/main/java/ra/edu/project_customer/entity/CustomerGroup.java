@@ -28,4 +28,7 @@ public class CustomerGroup {
 
     @OneToMany(mappedBy = "group")
     private List<Customer> customers;
+
+    @Column(nullable = false)
+    private Boolean status = true;
 }
