@@ -26,7 +26,7 @@ public class JWTProvider {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generateToken(String username){
+    public String generateToken(String username, String role){
         Date now = new Date();
         return Jwts.builder()
                 .setSubject(username)

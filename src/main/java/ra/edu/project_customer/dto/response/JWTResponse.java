@@ -18,13 +18,13 @@ public class JWTResponse {
     private String fullName;
     private String email;
     private String phone;
-    private Collection<? extends GrantedAuthority> authorities;
+    private String authorities;
     private String token;
 
     private String refreshToken;
 
 
-    public JWTResponse(User user, String accessToken, String refreshToken, Collection<? extends GrantedAuthority> authorities) {
+    public JWTResponse(User user, String accessToken, String refreshToken, String authorities) {
         this.username = user.getUsername();
         this.fullName = user.getFullName();
         this.email = user.getEmail();

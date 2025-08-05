@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import ra.edu.project_customer.dto.request.UserRoleRQ;
 import ra.edu.project_customer.dto.response.UserRoleDTO;
 import ra.edu.project_customer.entity.Role;
 import ra.edu.project_customer.entity.RoleEnum;
@@ -64,10 +65,12 @@ public class UserRoleServiceImpl implements UserRoleService {
             throw new RuntimeException("User đã có role này rồi");
         }
 
-        UserRole userRole = new UserRole(user, role);
-        userRole.setAssignedAt(LocalDateTime.now());
-        return UserRoleMapper.toDTO(userRoleRepository.save(userRole));
+        UserRole userRole = UserRoleMapper.toEntity(new UserRoleRQ(userId, roleId), user, role);
+        userRole = userRoleRepository.save(userRole);
+
+        return UserRoleMapper.toDTO(userRole);
     }
+
 
     @Override
     public UserRoleDTO updateUserRole(Integer userRoleId, Integer newRoleId) {

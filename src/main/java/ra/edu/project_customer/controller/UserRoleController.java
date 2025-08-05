@@ -1,10 +1,12 @@
 package ra.edu.project_customer.controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import ra.edu.project_customer.dto.request.UserRoleRQ;
 import ra.edu.project_customer.dto.response.UserRoleDTO;
 import ra.edu.project_customer.service.UserRoleService;
 
@@ -29,20 +31,24 @@ public class UserRoleController {
     }
 
     @PostMapping("/assign")
-    public ResponseEntity<UserRoleDTO> assign(
-            @RequestParam Integer userId,
-            @RequestParam Integer roleId) {
-        return ResponseEntity.ok(userRoleService.assignRoleToUser(userId, roleId));
+    public ResponseEntity<UserRoleDTO> assign(@RequestBody @Valid UserRoleRQ request) {
+        return ResponseEntity.ok(
+                userRoleService.assignRoleToUser(request.getUserId(), request.getRoleId())
+        );
     }
 
-    @PutMapping("/{id}/update")
+
+    @PutMapping("/{id}")
     public ResponseEntity<UserRoleDTO> update(
             @PathVariable Integer id,
-            @RequestParam Integer newRoleId) {
-        return ResponseEntity.ok(userRoleService.updateUserRole(id, newRoleId));
+            @RequestBody @Valid UserRoleRQ request) {
+        return ResponseEntity.ok(
+                userRoleService.updateUserRole(id, request.getRoleId())
+        );
     }
 
-    @DeleteMapping("/{id}/revoke")
+
+    @DeleteMapping("/{id}")
     public ResponseEntity<Void> revoke(@PathVariable Integer id) {
         userRoleService.revokeUserRole(id);
         return ResponseEntity.noContent().build();

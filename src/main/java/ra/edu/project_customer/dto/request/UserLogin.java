@@ -15,4 +15,7 @@ public class UserLogin {
 
     @NotBlank(message = "Password không được để trống")
     private String password;
+
+    @NotBlank(message = "Role không được để trống")
+    private String role;
 }

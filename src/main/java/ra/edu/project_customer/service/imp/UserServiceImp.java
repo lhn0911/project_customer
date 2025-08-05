@@ -6,6 +6,7 @@
     import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
     import org.springframework.security.core.Authentication;
     import org.springframework.security.core.AuthenticationException;
+    import org.springframework.security.core.GrantedAuthority;
     import org.springframework.security.core.context.SecurityContextHolder;
     import org.springframework.security.core.userdetails.UserDetails;
     import org.springframework.security.crypto.password.PasswordEncoder;
@@ -101,13 +102,20 @@
             }
 
             CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-            String token = jwtProvider.generateToken(userDetails.getUsername());
+            boolean hasRole = userDetails.getAuthorities().stream()
+                    .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equalsIgnoreCase("ROLE_" + userLogin.getRole()));
+
+            if (!hasRole) {
+                throw new RuntimeException("Tài khoản không có quyền: " + userLogin.getRole());
+            }
+            String token = jwtProvider.generateToken(userDetails.getUsername(), userLogin.getRole());
 
             return JWTResponse.builder()
                     .username(userDetails.getUsername())
                     .fullName(userDetails.getFullName())
                     .email(userDetails.getEmail())
-                    .authorities(userDetails.getAuthorities())
+                    .authorities("ROLE_" + userLogin.getRole().toUpperCase())
+
                     .token(token)
                     .build();
         }

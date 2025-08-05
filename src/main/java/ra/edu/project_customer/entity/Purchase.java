@@ -35,4 +35,8 @@ public class Purchase {
 
     @Column(columnDefinition = "TEXT")
     private String notes;
+
+    @Column(nullable = false)
+    private boolean deleted = false;
+
 }

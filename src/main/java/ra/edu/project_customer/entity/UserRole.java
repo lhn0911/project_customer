@@ -2,15 +2,18 @@ package ra.edu.project_customer.entity;
 
 import jakarta.persistence.*;
 
-import lombok.Data;
+import lombok.*;
+
 import java.time.LocalDateTime;
 
-
+@Builder
+@AllArgsConstructor
+@Getter
+@Setter
 @Entity
 @Table(name = "UserRoles", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"user_id", "role_id"})
 })
-@Data
 public class UserRole {
 
     @Id

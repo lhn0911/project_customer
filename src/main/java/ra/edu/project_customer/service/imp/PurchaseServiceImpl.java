@@ -70,9 +70,13 @@ public class PurchaseServiceImpl implements PurchaseService {
     public void deletePurchase(Integer customerId, Integer purchaseId) {
         getCustomerOrThrow(customerId);
         Purchase purchase = getPurchaseOrThrow(purchaseId);
+
         if (!purchase.getCustomer().getCustomerId().equals(customerId)) {
             throw new NotFoundException("Purchase does not belong to customer.");
         }
-        purchaseRepository.delete(purchase);
+
+        purchase.setDeleted(true);
+        purchaseRepository.save(purchase);
     }
+
 }
